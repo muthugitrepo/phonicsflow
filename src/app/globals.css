@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Chart series + status steps come from the validated palette
+   (see supabase/README or docs) and must not be re-picked ad hoc.
+---------------------------------------------------------------------------- */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-surface: #ffffff;
+  --color-plane: #f7f7f4;
+  --color-line: #e6e5df;
+  --color-line-strong: #c3c2b7;
+
+  --color-ink: #0b0b0b;
+  --color-ink-2: #52514e;
+  --color-muted: #898781;
+
+  --color-brand: #2a78d6;
+  --color-brand-strong: #256abf;
+  --color-brand-soft: #eef5fe;
+  --color-brand-ring: #cde2fb;
+
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+
+  --color-s1: #2a78d6;
+  --color-s2: #eb6834;
+  --color-s3: #1baf7a;
+
+  --radius-card: 14px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-plane);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Charts: role-based tokens so marks are written against roles, not raw hex. */
+.viz-root {
+  --surface-1: #ffffff;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
