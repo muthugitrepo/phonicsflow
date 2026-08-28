@@ -18,6 +18,7 @@ import type { StudentLevel } from "@/lib/database.types";
 
 export function StudentsView() {
   const profile = useSession();
+  const canSeeOthers = profile.role === "team_head" || profile.role === "lead_trainer";
   const [search, setSearch] = React.useState("");
   const [level, setLevel] = React.useState<StudentLevel | "">("");
   const [includeInactive, setIncludeInactive] = React.useState(false);
@@ -44,7 +45,9 @@ export function StudentsView() {
         description={
           profile.role === "team_head"
             ? "Everyone across the academy."
-            : "The students assigned to you."
+            : profile.role === "lead_trainer"
+              ? "Your students, and those of the trainers reporting to you."
+              : "The students assigned to you."
         }
         actions={
           <Button onClick={() => setFormOpen(true)}>
@@ -128,7 +131,7 @@ export function StudentsView() {
                       ? `${WEEKDAYS[student.class_day]} · ${formatTime(student.class_time)}`
                       : "No weekly slot set"}
                   </p>
-                  {profile.role === "team_head" && student.trainer ? (
+                  {canSeeOthers && student.trainer ? (
                     <p className="mt-1 truncate text-xs text-muted">{student.trainer.full_name}</p>
                   ) : null}
                 </div>

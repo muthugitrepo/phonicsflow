@@ -16,7 +16,7 @@ export function useTrainers() {
       const { data, error } = await supabase
         .from("users")
         .select("*")
-        .in("role", ["trainer", "team_head"])
+        .in("role", ["trainer", "lead_trainer", "team_head"])
         .order("full_name");
       if (error) throw error;
       return (data ?? []) as Profile[];

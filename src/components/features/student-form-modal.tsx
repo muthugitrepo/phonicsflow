@@ -26,7 +26,10 @@ export function StudentFormModal({
   onClose: () => void;
 }) {
   const profile = useSession();
-  const isTeamHead = profile.role === "team_head";
+  // Anyone with people reporting to them can assign a student to one of them.
+  // RLS scopes `trainers` to exactly that set, so the options need no filtering
+  // here: the Head sees everyone, a lead trainer sees self + direct reports.
+  const canAssignTrainer = profile.role === "team_head" || profile.role === "lead_trainer";
   const { data: trainers } = useTrainers();
   const saveStudent = useSaveStudent();
   const { toast } = useToast();
@@ -105,7 +108,7 @@ export function StudentFormModal({
             </Select>
           </Field>
 
-          {isTeamHead ? (
+          {canAssignTrainer ? (
             <Field label="Trainer" htmlFor="trainer_id">
               <Select id="trainer_id" {...register("trainer_id")}>
                 <option value="">Unassigned</option>
