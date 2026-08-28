@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { composeWeeklyEmail } from "@/lib/email/compose-weekly";
-import { sendEmail } from "@/lib/email/send";
+import { sendEmail, sendingAddress } from "@/lib/email/send";
 import { weeklyEmailSchema } from "@/lib/validations";
 
 export const maxDuration = 60;
@@ -74,7 +74,11 @@ export async function POST(request: Request) {
       subject,
       html,
       text,
-      fromName: `${profile.full_name} via PhonicsFlow`,
+      // No "via" when the sending mailbox already belongs to this person.
+      fromName:
+        sendingAddress()?.toLowerCase() === profile.email.toLowerCase()
+          ? profile.full_name
+          : `${profile.full_name} via PhonicsFlow`,
       replyTo: profile.email,
     });
     return NextResponse.json({

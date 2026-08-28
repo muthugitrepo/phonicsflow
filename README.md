@@ -95,22 +95,43 @@ classes, attendance, videos, homework, parent contacts, outstanding weekly
 submissions and any issues trainers raised. A scheduled send also runs every
 Sunday (`vercel.json`, `0 18 * * 0`) to everyone holding the Head role.
 
-Set these in `.env.local` and in Vercel:
+Two transports are supported; set one. SMTP wins if both are present.
+
+**SMTP** — Gmail, Zoho, Outlook or your host. Mail is sent through your own
+mailbox, so the From address is genuinely yours and a copy lands in Sent:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=your_16_char_app_password
+EMAIL_FROM=PhonicsFlow <you@gmail.com>   # optional; defaults to SMTP_USER
+```
+
+For Gmail this needs 2-Step Verification enabled, then an App Password from
+[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) —
+not the account password. Free accounts allow ~500 recipients a day.
+
+**Resend** — HTTP API, no SMTP port required:
 
 ```
 RESEND_API_KEY=re_...
 EMAIL_FROM=PhonicsFlow <reports@yourdomain.com>
+```
+
+Here the From domain must be verified in Resend. It cannot be a personal
+mailbox: providers only send from domains they can authenticate by DNS, and a
+From of `@gmail.com` would fail DMARC and bounce. The sender travels as the
+display name and `Reply-To` instead.
+
+Either way, `CRON_SECRET` guards the scheduled Sunday send:
+
+```
 CRON_SECRET=            # openssl rand -hex 32
 ```
 
-**The From address must be on a domain verified with your email provider.** It
-cannot be the sender's own mailbox: providers only send from domains they can
-authenticate by DNS, and a From of `@gmail.com` would fail SPF/DKIM and be
-rejected or spam-filed. The sender's identity travels as the display name
-(`Ranjani via PhonicsFlow`) and as `Reply-To`, so replies reach them directly.
-
-To use a different provider, rewrite `sendEmail()` in `src/lib/email/send.ts` —
-nothing else touches the provider.
+Adding another provider means editing `sendEmail()` in `src/lib/email/send.ts`
+and nothing else.
 
 ## Deployment
 
