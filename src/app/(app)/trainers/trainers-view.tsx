@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, UserCog, Video } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, UserCog, Video } from "lucide-react";
 import { useToday } from "@/lib/use-today";
 import {
   useTrainerSummaries,
@@ -9,6 +9,7 @@ import {
   useUpdateUserRole,
 } from "@/lib/queries/trainers";
 import { TrainerDetailModal } from "@/components/features/trainer-detail-modal";
+import { TrainerFormModal } from "@/components/features/trainer-form-modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/charts/stat-tile";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -26,6 +27,7 @@ export function TrainersView({ profile }: { profile: Profile }) {
   const isHead = profile.role === "team_head";
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [editing, setEditing] = React.useState<TrainerSummary | null>(null);
+  const [addOpen, setAddOpen] = React.useState(false);
 
   const viewerToday = useToday();
   const weekEndingDate = React.useMemo(() => {
@@ -61,7 +63,13 @@ export function TrainersView({ profile }: { profile: Profile }) {
             : "The trainers reporting to you — their students, weekly reporting and issues."
         }
         actions={
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-0.5">
+          <>
+            {isHead ? (
+              <Button onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4" /> Add trainer
+              </Button>
+            ) : null}
+            <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-0.5">
             <Button
               size="icon"
               variant="ghost"
@@ -82,7 +90,8 @@ export function TrainersView({ profile }: { profile: Profile }) {
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-          </div>
+            </div>
+          </>
         }
       />
 
@@ -112,7 +121,18 @@ export function TrainersView({ profile }: { profile: Profile }) {
             <EmptyState
               icon={UserCog}
               title="No trainers yet"
-              description="Trainers appear here once they create an account."
+              description={
+                isHead
+                  ? "Create an account to get your first trainer set up."
+                  : "Trainers assigned to you will appear here."
+              }
+              action={
+                isHead ? (
+                  <Button size="sm" onClick={() => setAddOpen(true)}>
+                    Add trainer
+                  </Button>
+                ) : null
+              }
             />
           ) : (
             <ul className="divide-y divide-line">
@@ -235,6 +255,8 @@ export function TrainersView({ profile }: { profile: Profile }) {
           emptyMessage="No students assigned yet"
         />
       </div>
+
+      <TrainerFormModal open={addOpen} onClose={() => setAddOpen(false)} leads={leads} />
 
       <TrainerDetailModal
         summary={editing}

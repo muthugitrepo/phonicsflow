@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "./keys";
 import type { UserRole } from "@/lib/database.types";
-import type { TrainerDetailInput } from "@/lib/validations";
+import type { TrainerDetailInput, TrainerInput } from "@/lib/validations";
 import type { Profile, TrainerDetailWithTrainer, TrainerSummary } from "@/lib/types";
 
 export function useTrainers() {
@@ -138,6 +138,34 @@ export function useUpdateReportsTo() {
     mutationFn: async ({ id, reportsTo }: { id: string; reportsTo: string | null }) => {
       const { error } = await supabase.from("users").update({ reports_to: reportsTo }).eq("id", id);
       if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trainers() });
+      queryClient.invalidateQueries({ queryKey: ["trainer-summaries"] });
+    },
+  });
+}
+
+export interface ProvisionedTrainer {
+  email: string;
+  password: string;
+  full_name: string;
+}
+
+/** Head-only: create an auth account plus profile in one call. */
+export function useCreateTrainer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (values: TrainerInput): Promise<ProvisionedTrainer> => {
+      const response = await fetch("/api/trainers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Could not create the account");
+      return payload as ProvisionedTrainer;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trainers() });

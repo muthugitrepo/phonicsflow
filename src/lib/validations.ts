@@ -150,9 +150,29 @@ export const trainerSchema = z.object({
   full_name: z.string().min(2, "Name is required").max(120),
   email: z.string().email("Enter a valid email address"),
   phone: optionalText(40),
-  role: z.enum(["team_head", "lead_trainer", "trainer", "parent"]).default("trainer"),
+  role: z.enum(["team_head", "lead_trainer", "trainer"]).default("trainer"),
+  reports_to: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
 });
-export type TrainerInput = z.infer<typeof trainerSchema>;
+export type TrainerFormValues = z.input<typeof trainerSchema>;
+export type TrainerInput = z.output<typeof trainerSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    password: z.string().min(8, "Use at least 8 characters"),
+    confirm: z.string().min(8, "Re-enter the password"),
+  })
+  .refine((values) => values.password === values.confirm, {
+    message: "The passwords do not match",
+    path: ["confirm"],
+  });
+export type ChangePasswordFormValues = z.input<typeof changePasswordSchema>;
+export type ChangePasswordInput = z.output<typeof changePasswordSchema>;
 
 export const monthlyReportSchema = z.object({
   year: z.coerce.number().int().min(2020).max(2100),

@@ -29,6 +29,8 @@ type UsersRow = {
   reports_to: string | null;
   phone: string | null;
   is_active: boolean;
+  /** True until a Head-provisioned user replaces their temporary password. */
+  must_change_password: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -162,7 +164,7 @@ export interface Database {
     Tables: {
       users: {
         Row: UsersRow;
-        Insert: Insert<UsersRow, Timestamps | "phone" | "is_active" | "reports_to">;
+        Insert: Insert<UsersRow, Timestamps | "phone" | "is_active" | "reports_to" | "must_change_password">;
         Update: Partial<UsersRow>;
         Relationships: [];
       };

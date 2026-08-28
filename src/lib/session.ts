@@ -31,6 +31,7 @@ export async function requireProfile(): Promise<Profile> {
       reports_to: null,
       phone: null,
       is_active: true,
+      must_change_password: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

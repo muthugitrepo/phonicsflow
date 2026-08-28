@@ -52,6 +52,8 @@ create table if not exists public.users (
   reports_to uuid references public.users (id) on delete set null,
   phone varchar(40),
   is_active boolean not null default true,
+  -- Set when the Head provisions an account with a temporary password.
+  must_change_password boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint users_reports_to_not_self check (reports_to is null or reports_to <> id)
