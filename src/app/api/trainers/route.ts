@@ -15,12 +15,20 @@ function temporaryPassword() {
 }
 
 /**
- * Head-only: provision a trainer account.
+ * Provision a sign-in account plus profile.
  *
  * public.users.id is a foreign key to auth.users, so a profile cannot exist
  * without an auth account — which only the service-role key can create. The
  * caller's own session is checked first; the admin client is used strictly
  * after that.
+ *
+ * Who may call it:
+ *   Head         — any role, any reporting line
+ *   Lead trainer — plain trainers reporting to themselves, and nothing else
+ *
+ * The clamp below is the ONLY thing enforcing that second rule. The profile
+ * update runs through the admin client, which bypasses guard_user_role(), so
+ * a lead trainer posting {"role":"team_head"} would otherwise be obeyed.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -31,8 +39,13 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  if (profile?.role !== "team_head") {
-    return NextResponse.json({ error: "Only the Head can create accounts" }, { status: 403 });
+  const callerRole = profile?.role;
+
+  if (callerRole !== "team_head" && callerRole !== "lead_trainer") {
+    return NextResponse.json(
+      { error: "Only the Head or a lead trainer can create accounts" },
+      { status: 403 },
+    );
   }
 
   const parsed = trainerSchema.safeParse(await request.json());
@@ -43,7 +56,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const { full_name, email, phone, role, reports_to } = parsed.data;
+  const { full_name, email, phone } = parsed.data;
+  const isHead = callerRole === "team_head";
+
+  // Never trust the submitted role/reporting line from a lead trainer.
+  const role = isHead ? parsed.data.role : "trainer";
+  const reportsTo = isHead
+    ? (role === "trainer" ? (parsed.data.reports_to ?? null) : null)
+    : user.id;
   const password = temporaryPassword();
   const admin = createAdminClient();
 
@@ -75,7 +95,7 @@ export async function POST(request: Request) {
       full_name,
       phone: phone ?? null,
       role,
-      reports_to: role === "trainer" ? (reports_to ?? null) : null,
+      reports_to: reportsTo,
       must_change_password: true,
     })
     .eq("id", created.user.id);

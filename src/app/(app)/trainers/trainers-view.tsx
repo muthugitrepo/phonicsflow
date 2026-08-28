@@ -64,11 +64,9 @@ export function TrainersView({ profile }: { profile: Profile }) {
         }
         actions={
           <>
-            {isHead ? (
-              <Button onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4" /> Add trainer
-              </Button>
-            ) : null}
+            <Button onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4" /> Add trainer
+            </Button>
             <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-0.5">
             <Button
               size="icon"
@@ -124,14 +122,12 @@ export function TrainersView({ profile }: { profile: Profile }) {
               description={
                 isHead
                   ? "Create an account to get your first trainer set up."
-                  : "Trainers assigned to you will appear here."
+                  : "Create a trainer account and they will report to you."
               }
               action={
-                isHead ? (
-                  <Button size="sm" onClick={() => setAddOpen(true)}>
-                    Add trainer
-                  </Button>
-                ) : null
+                <Button size="sm" onClick={() => setAddOpen(true)}>
+                  Add trainer
+                </Button>
               }
             />
           ) : (
@@ -256,7 +252,12 @@ export function TrainersView({ profile }: { profile: Profile }) {
         />
       </div>
 
-      <TrainerFormModal open={addOpen} onClose={() => setAddOpen(false)} leads={leads} />
+      <TrainerFormModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        leads={leads}
+        isHead={isHead}
+      />
 
       <TrainerDetailModal
         summary={editing}

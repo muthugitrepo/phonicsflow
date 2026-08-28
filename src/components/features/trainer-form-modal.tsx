@@ -23,16 +23,26 @@ export function TrainerFormModal({
   open,
   onClose,
   leads,
+  isHead,
 }: {
   open: boolean;
   onClose: () => void;
   leads: Profile[];
+  isHead: boolean;
 }) {
   if (!open) return null;
-  return <TrainerForm onClose={onClose} leads={leads} />;
+  return <TrainerForm onClose={onClose} leads={leads} isHead={isHead} />;
 }
 
-function TrainerForm({ onClose, leads }: { onClose: () => void; leads: Profile[] }) {
+function TrainerForm({
+  onClose,
+  leads,
+  isHead,
+}: {
+  onClose: () => void;
+  leads: Profile[];
+  isHead: boolean;
+}) {
   const createTrainer = useCreateTrainer();
   const { toast } = useToast();
   const [result, setResult] = React.useState<ProvisionedTrainer | null>(null);
@@ -115,7 +125,11 @@ function TrainerForm({ onClose, leads }: { onClose: () => void; leads: Profile[]
       open
       onClose={onClose}
       title="Add trainer"
-      description="Creates the sign-in account and the profile together."
+      description={
+        isHead
+          ? "Creates the sign-in account and the profile together."
+          : "Creates a trainer who reports to you."
+      }
       size="sm"
       footer={
         <>
@@ -142,28 +156,43 @@ function TrainerForm({ onClose, leads }: { onClose: () => void; leads: Profile[]
           <Input id="t_phone" inputMode="tel" {...register("phone")} />
         </Field>
 
-        <Field label="Role" htmlFor="t_role">
-          <Select id="t_role" {...register("role")}>
-            {ASSIGNABLE_ROLES.map((value) => (
-              <option key={value} value={value}>
-                {ROLE_LABELS[value]}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {isHead ? (
+          <>
+            <Field label="Role" htmlFor="t_role">
+              <Select id="t_role" {...register("role")}>
+                {ASSIGNABLE_ROLES.map((value) => (
+                  <option key={value} value={value}>
+                    {ROLE_LABELS[value]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-        {role === "trainer" ? (
-          <Field label="Reports to" htmlFor="t_reports" hint="Leave as Head if they report directly to you">
-            <Select id="t_reports" {...register("reports_to")}>
-              <option value="">Head</option>
-              {leads.map((lead) => (
-                <option key={lead.id} value={lead.id}>
-                  {lead.full_name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : null}
+            {role === "trainer" ? (
+              <Field
+                label="Reports to"
+                htmlFor="t_reports"
+                hint="Leave as Head if they report directly to you"
+              >
+                <Select id="t_reports" {...register("reports_to")}>
+                  <option value="">Head</option>
+                  {leads.map((lead) => (
+                    <option key={lead.id} value={lead.id}>
+                      {lead.full_name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
+          </>
+        ) : (
+          <p className="rounded-lg bg-plane px-3 py-2 text-xs text-ink-2">
+            They will be created as a <strong className="text-ink">Trainer</strong> reporting to
+            you, and their students will appear in your lists. Only the Head can change a role or
+            move someone to another team.
+          </p>
+        )}
+
       </form>
     </Modal>
   );
