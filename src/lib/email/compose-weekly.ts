@@ -1,6 +1,6 @@
 import "server-only";
 
-import { buildWeeklySummary, resolveWeek } from "@/lib/reports/weekly";
+import { buildWeeklySummary, resolveWeek, type WeeklyScope } from "@/lib/reports/weekly";
 import {
   weeklyReportHtml,
   weeklyReportSubject,
@@ -8,10 +8,10 @@ import {
 } from "./weekly-report-template";
 
 /** Subject and body are always derived from the data — never typed by hand. */
-export async function composeWeeklyEmail(week?: string | null) {
+export async function composeWeeklyEmail(week?: string | null, scope?: WeeklyScope) {
   const reference = week ? new Date(`${week}T12:00:00`) : new Date();
   const { from, to } = resolveWeek(reference);
-  const summary = await buildWeeklySummary(from, to);
+  const summary = await buildWeeklySummary(from, to, scope);
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??

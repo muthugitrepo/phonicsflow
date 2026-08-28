@@ -16,9 +16,18 @@ export interface WeeklyTrainerRow {
   issues: string | null;
 }
 
+export interface WeeklyScope {
+  /** Trainers the report covers — the lead plus their direct reports. */
+  trainerIds: string[];
+  /** Shown in the subject and header, e.g. "Priya Raman's team". */
+  label: string;
+}
+
 export interface WeeklySummary {
   from: string;
   to: string;
+  /** Absent for an academy-wide report. */
+  scopeLabel?: string;
   activeStudents: number;
   activeTrainers: number;
   classesScheduled: number;
@@ -47,8 +56,15 @@ export function resolveWeek(reference = new Date()) {
  * Runs with the service-role client because the caller is a cron invocation
  * with no user session. The endpoint that calls it is what checks authority.
  */
-export async function buildWeeklySummary(from: string, to: string): Promise<WeeklySummary> {
+export async function buildWeeklySummary(
+  from: string,
+  to: string,
+  scope?: WeeklyScope,
+): Promise<WeeklySummary> {
   const admin = createAdminClient();
+  // A scoped report must never widen: everything below is filtered through
+  // this set, so a lead trainer cannot see beyond their own team.
+  const inScope = scope ? new Set(scope.trainerIds) : null;
 
   const [users, students, classes, homework, contacts, feedback, details] = await Promise.all([
     admin.from("users").select("id, full_name, role").eq("is_active", true),
@@ -66,7 +82,7 @@ export async function buildWeeklySummary(from: string, to: string): Promise<Week
       .lte("contact_date", to),
     admin
       .from("parent_feedback")
-      .select("id, acknowledged_at")
+      .select("id, student_id, acknowledged_at")
       .gte("submission_date", from)
       .lte("submission_date", to),
     admin
@@ -81,12 +97,24 @@ export async function buildWeeklySummary(from: string, to: string): Promise<Week
   if (failed?.error) throw new Error(failed.error.message);
 
   const userRows = users.data ?? [];
-  const studentRows = students.data ?? [];
-  const classRows = classes.data ?? [];
-  const homeworkRows = homework.data ?? [];
-  const detailRows = details.data ?? [];
+  const allStudents = students.data ?? [];
 
-  const trainers = userRows.filter((u) => u.role === "trainer" || u.role === "lead_trainer");
+  const trainers = userRows
+    .filter((u) => u.role === "trainer" || u.role === "lead_trainer")
+    .filter((u) => !inScope || inScope.has(u.id));
+
+  const studentRows = inScope
+    ? allStudents.filter((s) => s.trainer_id && inScope.has(s.trainer_id))
+    : allStudents;
+  const scopedStudentIds = new Set(studentRows.map((s) => s.id));
+
+  const classRows = (classes.data ?? []).filter(
+    (c) => !inScope || scopedStudentIds.has(c.student_id),
+  );
+  const homeworkRows = (homework.data ?? []).filter(
+    (h) => !inScope || scopedStudentIds.has(h.student_id),
+  );
+  const detailRows = (details.data ?? []).filter((d) => !inScope || inScope.has(d.trainer_id));
   const trainerByStudent = new Map(studentRows.map((s) => [s.id, s.trainer_id]));
   const trainerOf = (row: { trainer_id: string | null; student_id: string }) =>
     row.trainer_id ?? trainerByStudent.get(row.student_id) ?? null;
@@ -101,7 +129,13 @@ export async function buildWeeklySummary(from: string, to: string): Promise<Week
     (h) => h.assigned_date >= from && h.assigned_date <= to,
   );
   const detailByTrainer = new Map(detailRows.map((d) => [d.trainer_id, d]));
-  const contactedStudents = new Set((contacts.data ?? []).map((c) => c.student_id));
+  const scopedFeedback = (feedback.data ?? []).filter(
+    (f) => !inScope || scopedStudentIds.has(f.student_id),
+  );
+  const scopedContacts = (contacts.data ?? []).filter(
+    (c) => !inScope || scopedStudentIds.has(c.student_id),
+  );
+  const contactedStudents = new Set(scopedContacts.map((c) => c.student_id));
 
   const trainerRows: WeeklyTrainerRow[] = trainers
     .map((trainer) => {
@@ -130,6 +164,7 @@ export async function buildWeeklySummary(from: string, to: string): Promise<Week
   return {
     from,
     to,
+    scopeLabel: scope?.label,
     activeStudents: studentRows.length,
     activeTrainers: trainers.length,
     classesScheduled: classRows.length,
@@ -139,9 +174,9 @@ export async function buildWeeklySummary(from: string, to: string): Promise<Week
     homeworkAssigned: weekHomework.length,
     homeworkCorrected: weekHomework.filter((h) => h.status === "corrected").length,
     homeworkOverdue: homeworkRows.filter((h) => h.status !== "corrected" && h.due_date < to).length,
-    parentContacts: (contacts.data ?? []).length,
-    parentFeedback: (feedback.data ?? []).length,
-    feedbackUnreviewed: (feedback.data ?? []).filter((f) => !f.acknowledged_at).length,
+    parentContacts: scopedContacts.length,
+    parentFeedback: scopedFeedback.length,
+    feedbackUnreviewed: scopedFeedback.filter((f) => !f.acknowledged_at).length,
     missingReports: trainerRows.filter((t) => !t.reportSubmitted).map((t) => t.name),
     studentsWithoutContact: studentRows
       .filter((s) => !contactedStudents.has(s.id))

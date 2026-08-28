@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { composeWeeklyEmail } from "@/lib/email/compose-weekly";
 import { sendEmail } from "@/lib/email/send";
 import { weeklyEmailSchema } from "@/lib/validations";
@@ -9,8 +10,9 @@ export const maxDuration = 60;
 /**
  * Sends the weekly report to recipients the user chooses.
  *
- * Head-only: the report aggregates every trainer and student in the academy,
- * so a lead trainer sending it would hand over data their own role cannot see.
+ * The Head sends an academy-wide report. A lead trainer sends the same report
+ * scoped to their own team — themselves plus their direct reports — so the
+ * email can never contain more than their role already lets them see.
  *
  * The From address stays the verified sending domain — providers reject mail
  * from domains they cannot authenticate. The sender's identity travels as the
@@ -30,8 +32,11 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "team_head") {
-    return NextResponse.json({ error: "Team head access only" }, { status: 403 });
+  if (profile?.role !== "team_head" && profile?.role !== "lead_trainer") {
+    return NextResponse.json(
+      { error: "Only the Head or a lead trainer can send this report" },
+      { status: 403 },
+    );
   }
 
   const parsed = weeklyEmailSchema.safeParse(await request.json());
@@ -42,7 +47,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const { subject, html, text, week } = await composeWeeklyEmail(parsed.data.week);
+  // The scope is derived from the caller's own row, never from the request.
+  let scope: { trainerIds: string[]; label: string } | undefined;
+  if (profile.role === "lead_trainer") {
+    const admin = createAdminClient();
+    const { data: reports, error: reportsError } = await admin
+      .from("users")
+      .select("id")
+      .eq("reports_to", user.id);
+
+    if (reportsError) {
+      return NextResponse.json({ error: reportsError.message }, { status: 500 });
+    }
+
+    scope = {
+      trainerIds: [user.id, ...(reports ?? []).map((row) => row.id)],
+      label: `${profile.full_name}'s team`,
+    };
+  }
+
+  const { subject, html, text, week } = await composeWeeklyEmail(parsed.data.week, scope);
 
   try {
     const result = await sendEmail({

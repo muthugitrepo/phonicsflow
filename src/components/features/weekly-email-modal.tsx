@@ -42,8 +42,9 @@ function WeeklyEmailForm({ onClose, profile }: { onClose: () => void; profile: P
   const weekEndsOn = viewerToday
     ? toISODate(weekEnding(new Date(`${viewerToday}T00:00:00`)))
     : null;
+  const scopeLabel = profile.role === "lead_trainer" ? `${profile.full_name}'s team — ` : "";
   const subject = weekEndsOn
-    ? `PhonicsFlow weekly report — week ending ${formatDate(weekEndsOn)}`
+    ? `PhonicsFlow weekly report — ${scopeLabel}week ending ${formatDate(weekEndsOn)}`
     : "PhonicsFlow weekly report";
 
   const submit = async () => {
@@ -142,9 +143,9 @@ function WeeklyEmailForm({ onClose, profile }: { onClose: () => void; profile: P
         ) : null}
 
         <p className="rounded-lg bg-plane px-3 py-2 text-xs text-ink-2">
-          Sent from your verified domain so it passes spam checks — your name appears as the
-          sender and replies come back to you. The scheduled Sunday email still goes to everyone
-          holding the Head role.
+          {profile.role === "lead_trainer"
+            ? "Covers your team — you and the trainers reporting to you. Sent from the academy's verified domain with your name on it, so replies come back to you."
+            : "Covers the whole academy. Sent from your verified domain so it passes spam checks — your name appears as the sender and replies come back to you."}
         </p>
       </div>
     </Modal>

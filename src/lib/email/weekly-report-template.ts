@@ -67,13 +67,15 @@ function bulletList(items: string[], emptyMessage: string, tone = INK_2) {
 }
 
 export function weeklyReportSubject(summary: WeeklySummary) {
-  return `PhonicsFlow weekly report — week ending ${formatDate(summary.to)}`;
+  const scope = summary.scopeLabel ? `${summary.scopeLabel} — ` : "";
+  return `PhonicsFlow weekly report — ${scope}week ending ${formatDate(summary.to)}`;
 }
 
 /** Plain-text alternative. Some clients show it, and spam filters like it. */
 export function weeklyReportText(summary: WeeklySummary) {
   const lines = [
     `PhonicsFlow weekly report`,
+    ...(summary.scopeLabel ? [summary.scopeLabel] : []),
     `${formatDate(summary.from)} to ${formatDate(summary.to)}`,
     ``,
     `Classes completed: ${summary.classesCompleted} of ${summary.classesScheduled} scheduled`,
@@ -118,7 +120,9 @@ export function weeklyReportHtml(summary: WeeklySummary, appUrl?: string) {
 
         <tr><td style="padding-bottom:16px;">
           <div style="font:700 16px/1.2 system-ui,-apple-system,'Segoe UI',sans-serif;color:${BRAND};">PhonicsFlow</div>
-          <div style="font:600 20px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;color:${INK};padding-top:6px;">Weekly report</div>
+          <div style="font:600 20px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;color:${INK};padding-top:6px;">
+            Weekly report${summary.scopeLabel ? ` &middot; ${escape(summary.scopeLabel)}` : ""}
+          </div>
           <div style="font:400 13px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif;color:${INK_2};padding-top:3px;">
             ${escape(formatDate(summary.from))} &ndash; ${escape(formatDate(summary.to))}
           </div>

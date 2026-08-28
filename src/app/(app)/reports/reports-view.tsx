@@ -297,6 +297,8 @@ function PastReports({ reports }: { reports: MonthlyReport[] }) {
 // Trainer — own weekly submission plus personal analytics
 // ---------------------------------------------------------------------------
 function TrainerReports({ profile }: { profile: Profile }) {
+  const isLead = profile.role === "lead_trainer";
+  const [emailOpen, setEmailOpen] = React.useState(false);
   const thisWeekEnding = React.useMemo(() => toISODate(weekEnding()), []);
   const historyStart = React.useMemo(() => {
     const start = new Date();
@@ -332,8 +334,19 @@ function TrainerReports({ profile }: { profile: Profile }) {
   return (
     <>
       <PageHeader
-        title="My reports"
-        description={`Weekly submission for the week ending ${formatDate(thisWeekEnding)}.`}
+        title={isLead ? "Team reports" : "My reports"}
+        description={
+          isLead
+            ? `Your team's week ending ${formatDate(thisWeekEnding)} — submit your own details, or email the summary on.`
+            : `Weekly submission for the week ending ${formatDate(thisWeekEnding)}.`
+        }
+        actions={
+          isLead ? (
+            <Button variant="secondary" onClick={() => setEmailOpen(true)}>
+              <Mail className="h-4 w-4" /> Email weekly report
+            </Button>
+          ) : null
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -386,6 +399,8 @@ function TrainerReports({ profile }: { profile: Profile }) {
           </ul>
         )}
       </Card>
+
+      <WeeklyEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} profile={profile} />
     </>
   );
 }
