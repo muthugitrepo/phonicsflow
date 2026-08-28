@@ -87,6 +87,31 @@ rejected) before a service-role client writes the row. Videos go straight to
 Storage through a one-shot signed upload URL, so large files never hit the
 serverless body limit.
 
+## Weekly report email
+
+The Head can email the weekly digest from **Reports → Email weekly report**,
+choosing the recipients. Subject and body are generated from the week's data —
+classes, attendance, videos, homework, parent contacts, outstanding weekly
+submissions and any issues trainers raised. A scheduled send also runs every
+Sunday (`vercel.json`, `0 18 * * 0`) to everyone holding the Head role.
+
+Set these in `.env.local` and in Vercel:
+
+```
+RESEND_API_KEY=re_...
+EMAIL_FROM=PhonicsFlow <reports@yourdomain.com>
+CRON_SECRET=            # openssl rand -hex 32
+```
+
+**The From address must be on a domain verified with your email provider.** It
+cannot be the sender's own mailbox: providers only send from domains they can
+authenticate by DNS, and a From of `@gmail.com` would fail SPF/DKIM and be
+rejected or spam-filed. The sender's identity travels as the display name
+(`Ranjani via PhonicsFlow`) and as `Reply-To`, so replies reach them directly.
+
+To use a different provider, rewrite `sendEmail()` in `src/lib/email/send.ts` —
+nothing else touches the provider.
+
 ## Deployment
 
 1. Push to GitHub and import the repo in Vercel.

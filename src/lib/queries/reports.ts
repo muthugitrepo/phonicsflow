@@ -60,3 +60,22 @@ export function useSubmitMonthlyReport() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.monthlyReports() }),
   });
 }
+
+/** Head-only: send this week's report to chosen recipients. */
+export function useSendWeeklyReport() {
+  return useMutation({
+    mutationFn: async (input: {
+      to: string[];
+      week?: string | null;
+    }): Promise<{ recipients: string[]; replyTo: string }> => {
+      const response = await fetch("/api/reports/weekly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Could not send the report");
+      return payload;
+    },
+  });
+}

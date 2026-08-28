@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Loader2, Printer, Send, Sparkles } from "lucide-react";
+import { FileText, Loader2, Mail, Printer, Send, Sparkles } from "lucide-react";
 import {
   useGenerateMonthlyReport,
   useMonthlyReports,
@@ -11,6 +11,7 @@ import { useClasses } from "@/lib/queries/classes";
 import { useHomework } from "@/lib/queries/homework";
 import { useStudents } from "@/lib/queries/students";
 import { useTrainerDetails, useSubmitTrainerDetail } from "@/lib/queries/trainers";
+import { WeeklyEmailModal } from "@/components/features/weekly-email-modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/charts/stat-tile";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -33,19 +34,24 @@ import {
 import type { MonthlyReport, MonthlySummary, Profile, TrainerDetail } from "@/lib/types";
 
 export function ReportsView({ profile }: { profile: Profile }) {
-  return profile.role === "team_head" ? <TeamHeadReports /> : <TrainerReports profile={profile} />;
+  return profile.role === "team_head" ? (
+    <TeamHeadReports profile={profile} />
+  ) : (
+    <TrainerReports profile={profile} />
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Team head — monthly report generation and submission
 // ---------------------------------------------------------------------------
-function TeamHeadReports() {
+function TeamHeadReports({ profile }: { profile: Profile }) {
   const now = new Date();
   const [year, setYear] = React.useState(now.getFullYear());
   const [month, setMonth] = React.useState(now.getMonth() + 1);
   const reports = useMonthlyReports();
   const generate = useGenerateMonthlyReport();
   const { toast } = useToast();
+  const [emailOpen, setEmailOpen] = React.useState(false);
 
   const selected = (reports.data ?? []).find(
     (report) => report.year === year && report.month === month,
@@ -68,6 +74,9 @@ function TeamHeadReports() {
         description="Aggregate the month, review the trends, submit to the Head."
         actions={
           <>
+            <Button variant="secondary" className="no-print" onClick={() => setEmailOpen(true)}>
+              <Mail className="h-4 w-4" /> Email weekly report
+            </Button>
             <Button variant="secondary" className="no-print" onClick={() => window.print()}>
               <Printer className="h-4 w-4" /> Print
             </Button>
@@ -217,6 +226,12 @@ function TeamHeadReports() {
           <PastReports reports={reports.data ?? []} />
         </div>
       )}
+
+      <WeeklyEmailModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        profile={profile}
+      />
     </>
   );
 }

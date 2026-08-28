@@ -180,3 +180,17 @@ export const monthlyReportSchema = z.object({
   notes: optionalText(),
 });
 export type MonthlyReportInput = z.infer<typeof monthlyReportSchema>;
+
+/** Recipients for a manually sent report. Accepts commas, spaces or newlines. */
+export const weeklyEmailSchema = z.object({
+  to: z
+    .array(z.string().email("That is not a valid email address"))
+    .min(1, "Add at least one recipient")
+    .max(20, "Twenty recipients at most"),
+  week: z.string().nullable().optional(),
+});
+export type WeeklyEmailInput = z.output<typeof weeklyEmailSchema>;
+
+export function parseRecipients(value: string): string[] {
+  return [...new Set(value.split(/[,;\s]+/).map((item) => item.trim()).filter(Boolean))];
+}

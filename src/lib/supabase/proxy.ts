@@ -2,7 +2,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from "./config";
 
-const PUBLIC_PREFIXES = ["/login", "/feedback", "/setup", "/auth"];
+/**
+ * Paths the session check must not redirect.
+ *
+ * The /api entries are not unprotected — each does its own authorisation and
+ * would be unreachable by its real caller if it required a session cookie:
+ *   /api/feedback  a parent following an emailed link, holding only a token
+ *   /api/cron      Vercel Cron, presenting CRON_SECRET as a bearer token
+ */
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/feedback",
+  "/setup",
+  "/auth",
+  "/api/feedback",
+  "/api/cron",
+];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
