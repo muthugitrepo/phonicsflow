@@ -1,8 +1,6 @@
 import type {
   AttendanceStatus,
-  ClassStatus,
   ContactMethod,
-  HomeworkStatus,
   SoundCategory,
   StudentLevel,
   UserRole,
@@ -24,22 +22,10 @@ export const LEVEL_LABELS: Record<StudentLevel, string> = {
   advanced: "Advanced",
 };
 
-export const CLASS_STATUS_LABELS: Record<ClassStatus, string> = {
-  scheduled: "Scheduled",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
-
 export const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   present: "Present",
   absent: "Absent",
   late: "Late",
-};
-
-export const HOMEWORK_STATUS_LABELS: Record<HomeworkStatus, string> = {
-  assigned: "Assigned",
-  submitted: "Submitted",
-  corrected: "Corrected",
 };
 
 export const SOUND_CATEGORY_LABELS: Record<SoundCategory, string> = {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Profile } from "@/lib/types";
+import type { MenuOverrides } from "@/components/layout/nav-items";
 
 /**
  * Resolves the signed-in user's profile for a Server Component.
@@ -38,4 +39,19 @@ export async function requireProfile(): Promise<Profile> {
   }
 
   return profile as Profile;
+}
+
+/**
+ * The Head's menu overrides for one role. Returns an empty map when the table
+ * has not been created yet, so the app keeps working before migration 0005.
+ */
+export async function getMenuOverrides(role: Profile["role"]): Promise<MenuOverrides> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("menu_permissions")
+    .select("item_key, visible")
+    .eq("role", role);
+
+  if (error || !data) return {};
+  return Object.fromEntries(data.map((row) => [row.item_key, row.visible]));
 }

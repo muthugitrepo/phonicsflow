@@ -42,17 +42,6 @@ export interface TrainerSummary {
   videosPosted: number;
 }
 
-export interface StudentProgress {
-  totalClasses: number;
-  completedClasses: number;
-  attendanceRate: number;
-  homeworkAssigned: number;
-  homeworkCorrected: number;
-  homeworkCompletionRate: number;
-  soundsCovered: string[];
-  lastClassDate: string | null;
-}
-
 export interface MonthlySummary {
   year: number;
   month: number;

@@ -4,9 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-picker";
 import { createClient } from "@/lib/supabase/client";
 import { SessionProvider } from "@/components/session-provider";
-import { navItemsForRole } from "./nav-items";
+import { navItemsForRole, type MenuOverrides } from "./nav-items";
 import { ROLE_LABELS } from "@/lib/constants";
 import { cn, initials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,15 +15,17 @@ import type { Profile } from "@/lib/types";
 
 export function AppShell({
   profile,
+  menuOverrides,
   children,
 }: {
   profile: Profile;
+  menuOverrides?: MenuOverrides;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const items = navItemsForRole(profile.role);
+  const items = navItemsForRole(profile.role, menuOverrides);
 
   const signOut = async () => {
     await createClient().auth.signOut();
@@ -134,6 +137,7 @@ function UserBlock({ profile, onSignOut }: { profile: Profile; onSignOut: () => 
         <p className="truncate text-sm font-medium text-ink">{profile.full_name}</p>
         <p className="truncate text-xs text-muted">{ROLE_LABELS[profile.role]}</p>
       </div>
+      <ThemeToggle />
       <Button variant="ghost" size="icon" aria-label="Sign out" onClick={onSignOut}>
         <LogOut className="h-4 w-4" />
       </Button>

@@ -156,6 +156,14 @@ type MonthlyReportsRow = {
   submitted_at: string | null;
 }
 
+type MenuPermissionsRow = {
+  id: string;
+  role: UserRole;
+  item_key: string;
+  visible: boolean;
+  updated_at: string;
+};
+
 type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
 type Timestamps = "id" | "created_at" | "updated_at";
 
@@ -229,6 +237,12 @@ export interface Database {
           "id" | "submitted_at" | "issues_notes" | "classes_conducted"
         >;
         Update: Partial<TrainerDetailsRow>;
+        Relationships: [];
+      };
+      menu_permissions: {
+        Row: MenuPermissionsRow;
+        Insert: Insert<MenuPermissionsRow, "id" | "updated_at" | "visible">;
+        Update: Partial<MenuPermissionsRow>;
         Relationships: [];
       };
       monthly_reports: {

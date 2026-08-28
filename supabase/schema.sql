@@ -171,6 +171,17 @@ create table if not exists public.trainer_details (
   unique (trainer_id, week_ending_date)
 );
 
+-- Which navigation items each role sees. A missing row means "use the app's
+-- built-in default", so this table records only deliberate overrides.
+create table if not exists public.menu_permissions (
+  id uuid primary key default gen_random_uuid(),
+  role user_role not null,
+  item_key varchar(40) not null,
+  visible boolean not null default true,
+  updated_at timestamptz not null default now(),
+  unique (role, item_key)
+);
+
 create table if not exists public.monthly_reports (
   id uuid primary key default gen_random_uuid(),
   year smallint not null,
@@ -200,6 +211,7 @@ create index if not exists parent_feedback_student_idx on public.parent_feedback
 create index if not exists trainer_details_week_idx on public.trainer_details (week_ending_date desc);
 create index if not exists phonics_sounds_category_idx on public.phonics_sounds (category, display_order);
 create index if not exists feedback_links_token_idx on public.feedback_links (token);
+create index if not exists menu_permissions_role_idx on public.menu_permissions (role);
 
 -- ---------------------------------------------------------------------------
 -- updated_at triggers
@@ -356,6 +368,7 @@ alter table public.parent_feedback enable row level security;
 alter table public.feedback_links enable row level security;
 alter table public.trainer_details enable row level security;
 alter table public.monthly_reports enable row level security;
+alter table public.menu_permissions enable row level security;
 
 -- users -------------------------------------------------------------------
 drop policy if exists users_select on public.users;
@@ -495,6 +508,36 @@ create policy monthly_reports_all on public.monthly_reports
   for all to authenticated
   using (public.is_team_head())
   with check (public.is_team_head());
+
+-- menu_permissions: everyone reads their own menu, only the Head edits -----
+drop policy if exists menu_permissions_select on public.menu_permissions;
+create policy menu_permissions_select on public.menu_permissions
+  for select to authenticated using (true);
+
+drop policy if exists menu_permissions_write on public.menu_permissions;
+create policy menu_permissions_write on public.menu_permissions
+  for all to authenticated
+  using (public.is_team_head())
+  with check (public.is_team_head());
+
+-- Hiding Configuration from the Head would lock the only account that can undo
+-- it out of the settings screen. Refuse at the database, not just in the UI.
+create or replace function public.guard_menu_lockout()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.role = 'team_head' and new.item_key = 'configuration' and new.visible = false then
+    raise exception 'The Configuration page cannot be hidden from the Head';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_menu_lockout on public.menu_permissions;
+create trigger guard_menu_lockout
+  before insert or update on public.menu_permissions
+  for each row execute function public.guard_menu_lockout();
 
 -- ---------------------------------------------------------------------------
 -- Storage buckets (private) + policies

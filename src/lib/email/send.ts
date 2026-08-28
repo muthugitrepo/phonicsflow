@@ -36,8 +36,6 @@ export function emailTransport(): Transport {
   return null;
 }
 
-export const isEmailConfigured = () => emailTransport() !== null && Boolean(senderAddress());
-
 /**
  * The address mail is sent from.
  *
