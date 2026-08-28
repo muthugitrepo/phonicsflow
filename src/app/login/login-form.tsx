@@ -37,7 +37,9 @@ export function LoginForm() {
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
-        options: { data: { full_name: fullName || values.email.split("@")[0], role: "trainer" } },
+        // Display name only. The role is assigned server-side by the
+        // handle_new_user trigger and cannot be influenced from here.
+        options: { data: { full_name: fullName || values.email.split("@")[0] } },
       });
       if (error) {
         setFormError(error.message);
@@ -125,7 +127,8 @@ export function LoginForm() {
         </form>
 
         <p className="text-center text-xs text-muted">
-          New accounts start as trainers. The team head promotes them from the Trainers page.
+          The first account becomes the Head. Later accounts start as trainers — the Head
+          assigns roles and reporting lines from the Trainers page.
         </p>
       </CardBody>
     </Card>

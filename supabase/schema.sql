@@ -226,22 +226,40 @@ begin
 end
 $$;
 
--- New auth user -> profile row. Role/name come from the sign-up metadata.
+-- New auth user -> profile row.
+--
+-- The role is decided here, never taken from raw_user_meta_data: that field is
+-- supplied by whoever calls /auth/v1/signup, so trusting it would let anyone
+-- sign themselves up as Head. The first account bootstraps as Head; everyone
+-- after starts as a trainer and is promoted by the Head.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  assigned_role user_role;
 begin
+  if not exists (select 1 from public.users) then
+    assigned_role := 'team_head';
+  else
+    assigned_role := 'trainer';
+  end if;
+
   insert into public.users (id, email, full_name, role)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
-    coalesce((new.raw_user_meta_data ->> 'role')::user_role, 'trainer')
+    -- Display name only. Carries no privilege, so client-supplied is fine.
+    coalesce(
+      nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''),
+      split_part(new.email, '@', 1)
+    ),
+    assigned_role
   )
   on conflict (id) do nothing;
+
   return new;
 end;
 $$;
