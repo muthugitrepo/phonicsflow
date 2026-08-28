@@ -25,7 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/homework", label: "Homework", icon: ClipboardList, primary: true },
   { href: "/diary", label: "Phonics diary", icon: BookOpenText, primary: true },
   { href: "/parents", label: "Parents", icon: MessageSquareHeart },
-  { href: "/trainers", label: "Trainers", icon: UserCog, roles: ["team_head"] },
+  { href: "/trainers", label: "Trainers", icon: UserCog, roles: ["team_head", "lead_trainer"] },
   { href: "/reports", label: "Reports", icon: TrendingUp },
 ];
 

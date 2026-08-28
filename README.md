@@ -37,6 +37,9 @@ npm run dev
 3. In the **SQL editor**, run `supabase/schema.sql` — tables, indexes, triggers,
    RLS policies and the two private storage buckets.
 4. Run `supabase/seed.sql` to load the phonics diary.
+   *Upgrading an existing database?* Run `supabase/migrations/0001_…` on its own
+   first, then `0002_…` — Postgres will not let a newly added enum value be used
+   in the transaction that created it.
 5. Start the app, create the first account at `/login`, then promote it:
 
    ```sql
@@ -61,16 +64,22 @@ survive a reseed.
 
 Row-level security is the enforcement point — the UI only mirrors it.
 
-- **Trainer** — their own students, and everything hanging off them (classes,
-  homework, parent contacts and feedback).
-- **Team head** — the whole academy, plus trainer roles and monthly reports.
-- **Parent** — a student's row can carry `parent_user_id`; that account sees only
-  their own child.
+| Role | Sees |
+|---|---|
+| **Trainer** | their own students, and everything hanging off them (classes, homework, parent contacts and feedback) |
+| **Lead Trainer** | their own students *plus* every student of the trainers reporting to them |
+| **Head** (`team_head`) | the whole academy, plus roles, reporting lines and monthly reports |
+| **Parent** | only the child whose `students.parent_user_id` matches their account |
 
-`public.can_access_student()` is the single predicate behind the student-scoped
-tables and both storage buckets, so the rule is stated once. A user can edit
-their own profile but not their own `role` — a trigger blocks that, so a trainer
-cannot promote themselves.
+The hierarchy is one level deep by design: a lead trainer sees their *direct*
+reports. It does not walk lead → lead → trainer chains, because the model is
+three fixed tiers.
+
+`public.manages_trainer()` is the single predicate behind it — "may I see this
+trainer's students?" — and every student-scoped policy, `can_access_student()`,
+and both storage buckets route through it, so the rule is stated once. Only the
+Head can change a role or a reporting line; a database trigger enforces that, so
+a lead trainer cannot promote themselves or reassign who reports to them.
 
 Parent feedback links are the one anonymous path: `/feedback/<token>` is
 validated server-side (unknown, expired and already-used tokens are all

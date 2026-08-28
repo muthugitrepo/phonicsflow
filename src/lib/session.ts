@@ -28,6 +28,7 @@ export async function requireProfile(): Promise<Profile> {
       email: user.email ?? "",
       full_name: user.email?.split("@")[0] ?? "Trainer",
       role: "trainer",
+      reports_to: null,
       phone: null,
       is_active: true,
       created_at: new Date().toISOString(),

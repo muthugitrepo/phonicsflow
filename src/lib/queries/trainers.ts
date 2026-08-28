@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "./keys";
+import type { UserRole } from "@/lib/database.types";
 import type { TrainerDetailInput } from "@/lib/validations";
 import type { Profile, TrainerDetailWithTrainer, TrainerSummary } from "@/lib/types";
 
@@ -56,7 +57,11 @@ export function useTrainerSummaries(weekEnding: string, enabled = true) {
     enabled,
     queryFn: async (): Promise<TrainerSummary[]> => {
       const [trainersResult, studentsResult, detailsResult] = await Promise.all([
-        supabase.from("users").select("*").eq("role", "trainer").order("full_name"),
+        supabase
+          .from("users")
+          .select("*")
+          .in("role", ["trainer", "lead_trainer"])
+          .order("full_name"),
         supabase.from("students").select("id, trainer_id").eq("is_active", true),
         supabase.from("trainer_details").select("*").eq("week_ending_date", weekEnding),
       ]);
@@ -107,14 +112,31 @@ export function useSubmitTrainerDetail() {
   });
 }
 
-/** Team-head-only: promote a trainer to team head, or demote. */
+/** Head-only: change someone's role. Enforced by a trigger, not just the UI. */
 export function useUpdateUserRole() {
   const supabase = createClient();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: "team_head" | "trainer" | "parent" }) => {
+    mutationFn: async ({ id, role }: { id: string; role: UserRole }) => {
       const { error } = await supabase.from("users").update({ role }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trainers() });
+      queryClient.invalidateQueries({ queryKey: ["trainer-summaries"] });
+    },
+  });
+}
+
+/** Head-only: set which lead trainer someone reports to. */
+export function useUpdateReportsTo() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, reportsTo }: { id: string; reportsTo: string | null }) => {
+      const { error } = await supabase.from("users").update({ reports_to: reportsTo }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

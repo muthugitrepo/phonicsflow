@@ -12,7 +12,7 @@ create extension if not exists "pgcrypto";
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
-    create type user_role as enum ('team_head', 'trainer', 'parent');
+    create type user_role as enum ('team_head', 'lead_trainer', 'trainer', 'parent');
   end if;
   if not exists (select 1 from pg_type where typname = 'student_level') then
     create type student_level as enum ('beginner', 'intermediate', 'advanced');
@@ -48,10 +48,13 @@ create table if not exists public.users (
   email varchar(255) not null unique,
   full_name varchar(120) not null default '',
   role user_role not null default 'trainer',
+  -- Who this trainer reports to. Null for the Head and unassigned trainers.
+  reports_to uuid references public.users (id) on delete set null,
   phone varchar(40),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint users_reports_to_not_self check (reports_to is null or reports_to <> id)
 );
 
 create table if not exists public.students (
@@ -184,6 +187,7 @@ create table if not exists public.monthly_reports (
 -- ---------------------------------------------------------------------------
 create index if not exists students_trainer_idx on public.students (trainer_id) where is_active;
 create index if not exists students_parent_idx on public.students (parent_user_id);
+create index if not exists users_reports_to_idx on public.users (reports_to);
 create index if not exists classes_student_date_idx on public.classes (student_id, scheduled_date desc);
 create index if not exists classes_date_idx on public.classes (scheduled_date desc);
 create index if not exists classes_trainer_date_idx on public.classes (trainer_id, scheduled_date desc);
@@ -271,7 +275,35 @@ as $$
   select coalesce(public.current_app_role() = 'team_head', false);
 $$;
 
--- True when the caller is the team head, the student's trainer, or its parent.
+-- The single source of truth for "whose students may I see".
+--
+-- One level deep on purpose: the model is three fixed tiers, so a lead trainer
+-- sees their direct reports. It does not walk lead -> lead -> trainer chains.
+create or replace function public.manages_trainer(target_trainer uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    target_trainer is not null
+    and (
+      target_trainer = auth.uid()
+      or (
+        public.current_app_role() = 'lead_trainer'
+        and exists (
+          select 1
+          from public.users u
+          where u.id = target_trainer
+            and u.reports_to = auth.uid()
+        )
+      )
+    );
+$$;
+
+-- True when the caller is the Head, the student's trainer, a lead trainer above
+-- that trainer, or the student's parent.
 create or replace function public.can_access_student(target uuid)
 returns boolean
 language sql
@@ -285,56 +317,11 @@ as $$
     where s.id = target
       and (
         public.is_team_head()
-        or s.trainer_id = auth.uid()
         or s.parent_user_id = auth.uid()
+        or public.manages_trainer(s.trainer_id)
       )
   );
 $$;
-
--- A user may edit their own profile, but only the team head may change a role.
--- (auth.uid() is null for service-role and SQL-editor sessions, which is how
--- the first team head gets promoted.)
-create or replace function public.guard_user_role()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.role is distinct from old.role
-     and auth.uid() is not null
-     and not public.is_team_head() then
-    raise exception 'Only the team head can change a role';
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists guard_user_role on public.users;
-create trigger guard_user_role
-  before update on public.users
-  for each row execute function public.guard_user_role();
-
--- Classes inherit the student's trainer, so per-trainer reporting stays whole
--- even when the caller does not send one.
-create or replace function public.set_class_trainer()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.trainer_id is null then
-    select trainer_id into new.trainer_id from public.students where id = new.student_id;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists set_class_trainer on public.classes;
-create trigger set_class_trainer
-  before insert on public.classes
-  for each row execute function public.set_class_trainer();
 
 -- ---------------------------------------------------------------------------
 -- Row-level security
@@ -354,7 +341,11 @@ alter table public.monthly_reports enable row level security;
 drop policy if exists users_select on public.users;
 create policy users_select on public.users
   for select to authenticated
-  using (id = auth.uid() or public.is_team_head());
+  using (
+    id = auth.uid()
+    or public.is_team_head()
+    or (public.current_app_role() = 'lead_trainer' and reports_to = auth.uid())
+  );
 
 drop policy if exists users_insert on public.users;
 create policy users_insert on public.users
@@ -373,20 +364,20 @@ create policy students_select on public.students
   for select to authenticated
   using (
     public.is_team_head()
-    or trainer_id = auth.uid()
     or parent_user_id = auth.uid()
+    or public.manages_trainer(trainer_id)
   );
 
 drop policy if exists students_write on public.students;
 create policy students_write on public.students
   for insert to authenticated
-  with check (public.is_team_head() or trainer_id = auth.uid());
+  with check (public.is_team_head() or public.manages_trainer(trainer_id));
 
 drop policy if exists students_update on public.students;
 create policy students_update on public.students
   for update to authenticated
-  using (public.is_team_head() or trainer_id = auth.uid())
-  with check (public.is_team_head() or trainer_id = auth.uid());
+  using (public.is_team_head() or public.manages_trainer(trainer_id))
+  with check (public.is_team_head() or public.manages_trainer(trainer_id));
 
 drop policy if exists students_delete on public.students;
 create policy students_delete on public.students
@@ -432,13 +423,13 @@ create policy sounds_select on public.phonics_sounds
 drop policy if exists sounds_insert on public.phonics_sounds;
 create policy sounds_insert on public.phonics_sounds
   for insert to authenticated
-  with check (public.current_app_role() in ('team_head', 'trainer'));
+  with check (public.current_app_role() in ('team_head', 'lead_trainer', 'trainer'));
 
 drop policy if exists sounds_update on public.phonics_sounds;
 create policy sounds_update on public.phonics_sounds
   for update to authenticated
-  using (public.current_app_role() in ('team_head', 'trainer'))
-  with check (public.current_app_role() in ('team_head', 'trainer'));
+  using (public.current_app_role() in ('team_head', 'lead_trainer', 'trainer'))
+  with check (public.current_app_role() in ('team_head', 'lead_trainer', 'trainer'));
 
 drop policy if exists sounds_delete on public.phonics_sounds;
 create policy sounds_delete on public.phonics_sounds
@@ -461,7 +452,7 @@ create policy feedback_links_delete on public.feedback_links
 drop policy if exists trainer_details_select on public.trainer_details;
 create policy trainer_details_select on public.trainer_details
   for select to authenticated
-  using (trainer_id = auth.uid() or public.is_team_head());
+  using (public.is_team_head() or public.manages_trainer(trainer_id));
 
 drop policy if exists trainer_details_insert on public.trainer_details;
 create policy trainer_details_insert on public.trainer_details

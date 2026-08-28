@@ -3,7 +3,11 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight, UserCog, Video } from "lucide-react";
 import { useToday } from "@/lib/use-today";
-import { useTrainerSummaries, useUpdateUserRole } from "@/lib/queries/trainers";
+import {
+  useTrainerSummaries,
+  useUpdateReportsTo,
+  useUpdateUserRole,
+} from "@/lib/queries/trainers";
 import { TrainerDetailModal } from "@/components/features/trainer-detail-modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/charts/stat-tile";
@@ -14,10 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
+import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, initials, toISODate, weekEnding } from "@/lib/utils";
-import type { TrainerSummary } from "@/lib/types";
+import type { Profile, TrainerSummary } from "@/lib/types";
 
-export function TrainersView() {
+export function TrainersView({ profile }: { profile: Profile }) {
+  const isHead = profile.role === "team_head";
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [editing, setEditing] = React.useState<TrainerSummary | null>(null);
 
@@ -30,9 +36,13 @@ export function TrainersView() {
 
   const { data, isLoading, error } = useTrainerSummaries(weekEndingDate);
   const updateRole = useUpdateUserRole();
+  const updateReportsTo = useUpdateReportsTo();
   const { toast } = useToast();
 
   const summaries = data ?? [];
+  const leads = summaries
+    .filter((row) => row.trainer.role === "lead_trainer")
+    .map((row) => row.trainer);
   const submitted = summaries.filter((row) => row.latestReport);
   const totalStudents = summaries.reduce((sum, row) => sum + row.studentCount, 0);
   const totalVideos = summaries.reduce((sum, row) => sum + row.videosPosted, 0);
@@ -45,7 +55,11 @@ export function TrainersView() {
     <>
       <PageHeader
         title="Trainers"
-        description="Team roster, weekly reporting and where support is needed."
+        description={
+          isHead
+            ? "The whole academy — roster, weekly reporting and where support is needed."
+            : "The trainers reporting to you — their students, weekly reporting and issues."
+        }
         actions={
           <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-0.5">
             <Button
@@ -113,6 +127,18 @@ export function TrainersView() {
                         {row.trainer.full_name}
                       </p>
                       <p className="truncate text-xs text-muted">{row.trainer.email}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <Badge tone={row.trainer.role === "lead_trainer" ? "brand" : "neutral"}>
+                          {ROLE_LABELS[row.trainer.role]}
+                        </Badge>
+                        {row.trainer.role === "trainer" ? (
+                          <span className="text-xs text-muted">
+                            reports to{" "}
+                            {leads.find((lead) => lead.id === row.trainer.reports_to)?.full_name ??
+                              "Head"}
+                          </span>
+                        ) : null}
+                      </p>
                     </div>
 
                     <dl className="flex items-center gap-4 text-center">
@@ -137,21 +163,52 @@ export function TrainersView() {
                     )}
 
                     <div className="flex items-center gap-1">
-                      <Select
-                        className="h-8 w-auto text-xs"
-                        value={row.trainer.role}
-                        aria-label={`Role for ${row.trainer.full_name}`}
-                        onChange={async (event) => {
-                          await updateRole.mutateAsync({
-                            id: row.trainer.id,
-                            role: event.target.value as "team_head" | "trainer" | "parent",
-                          });
-                          toast("Role updated");
-                        }}
-                      >
-                        <option value="trainer">Trainer</option>
-                        <option value="team_head">Team head</option>
-                      </Select>
+                      {isHead ? (
+                        <>
+                          <Select
+                            className="h-8 w-auto text-xs"
+                            value={row.trainer.role}
+                            aria-label={`Role for ${row.trainer.full_name}`}
+                            onChange={async (event) => {
+                              await updateRole.mutateAsync({
+                                id: row.trainer.id,
+                                role: event.target.value as Profile["role"],
+                              });
+                              toast("Role updated");
+                            }}
+                          >
+                            {ASSIGNABLE_ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {ROLE_LABELS[role]}
+                              </option>
+                            ))}
+                          </Select>
+
+                          {row.trainer.role === "trainer" ? (
+                            <Select
+                              className="h-8 w-auto text-xs"
+                              value={row.trainer.reports_to ?? ""}
+                              aria-label={`Reports to, for ${row.trainer.full_name}`}
+                              onChange={async (event) => {
+                                await updateReportsTo.mutateAsync({
+                                  id: row.trainer.id,
+                                  reportsTo: event.target.value || null,
+                                });
+                                toast("Reporting line updated");
+                              }}
+                            >
+                              <option value="">Reports to: Head</option>
+                              {leads
+                                .filter((lead) => lead.id !== row.trainer.id)
+                                .map((lead) => (
+                                  <option key={lead.id} value={lead.id}>
+                                    Reports to: {lead.full_name}
+                                  </option>
+                                ))}
+                            </Select>
+                          ) : null}
+                        </>
+                      ) : null}
                       <Button size="sm" variant="secondary" onClick={() => setEditing(row)}>
                         {row.latestReport ? "Edit" : "Record"}
                       </Button>

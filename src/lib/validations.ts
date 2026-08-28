@@ -150,7 +150,7 @@ export const trainerSchema = z.object({
   full_name: z.string().min(2, "Name is required").max(120),
   email: z.string().email("Enter a valid email address"),
   phone: optionalText(40),
-  role: z.enum(["team_head", "trainer", "parent"]).default("trainer"),
+  role: z.enum(["team_head", "lead_trainer", "trainer", "parent"]).default("trainer"),
 });
 export type TrainerInput = z.infer<typeof trainerSchema>;
 

@@ -9,10 +9,14 @@ import type {
 } from "@/lib/database.types";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  team_head: "Team Head",
+  team_head: "Head",
+  lead_trainer: "Lead Trainer",
   trainer: "Trainer",
   parent: "Parent",
 };
+
+/** Roles that can be assigned from the Trainers page, in seniority order. */
+export const ASSIGNABLE_ROLES: UserRole[] = ["team_head", "lead_trainer", "trainer"];
 
 export const LEVEL_LABELS: Record<StudentLevel, string> = {
   beginner: "Beginner",

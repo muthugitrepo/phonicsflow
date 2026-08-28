@@ -21,6 +21,13 @@ export function useSession(): Profile {
   return profile;
 }
 
+/** The Head — sees and administers the whole academy. */
 export function useIsTeamHead() {
   return useSession().role === "team_head";
+}
+
+/** Head or lead trainer: anyone with people reporting to them. */
+export function useCanManageTeam() {
+  const role = useSession().role;
+  return role === "team_head" || role === "lead_trainer";
 }

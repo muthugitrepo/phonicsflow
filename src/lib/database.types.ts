@@ -6,7 +6,7 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
-export type UserRole = "team_head" | "trainer" | "parent";
+export type UserRole = "team_head" | "lead_trainer" | "trainer" | "parent";
 export type StudentLevel = "beginner" | "intermediate" | "advanced";
 export type ClassStatus = "scheduled" | "completed" | "cancelled";
 export type AttendanceStatus = "present" | "absent" | "late";
@@ -25,6 +25,8 @@ type UsersRow = {
   email: string;
   full_name: string;
   role: UserRole;
+  /** The lead trainer this user reports to. Null for the Head. */
+  reports_to: string | null;
   phone: string | null;
   is_active: boolean;
   created_at: string;
@@ -160,7 +162,7 @@ export interface Database {
     Tables: {
       users: {
         Row: UsersRow;
-        Insert: Insert<UsersRow, Timestamps | "phone" | "is_active">;
+        Insert: Insert<UsersRow, Timestamps | "phone" | "is_active" | "reports_to">;
         Update: Partial<UsersRow>;
         Relationships: [];
       };

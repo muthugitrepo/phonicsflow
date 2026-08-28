@@ -44,14 +44,14 @@ export function DashboardView({ profile }: { profile: Profile }) {
     return toISODate(start);
   }, []);
 
-  const isTeamHead = profile.role === "team_head";
+  const canManageTeam = profile.role === "team_head" || profile.role === "lead_trainer";
 
   const todayClasses = useClasses({ date: today });
   const students = useStudents();
   const homework = useHomework();
   const feedback = useParentFeedback({ limit: 5 });
   const history = useClasses({ from: historyStart, to: today });
-  const trainerSummaries = useTrainerSummaries(thisWeekEnding, isTeamHead);
+  const trainerSummaries = useTrainerSummaries(thisWeekEnding, canManageTeam);
 
   const [notesSession, setNotesSession] = React.useState<ClassWithStudent | null>(null);
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
@@ -242,9 +242,13 @@ export function DashboardView({ profile }: { profile: Profile }) {
           formatValue={(value) => `${value}%`}
         />
 
-        {isTeamHead ? (
+        {canManageTeam ? (
           <BarChart
-            title="Videos posted this week"
+            title={
+              profile.role === "team_head"
+                ? "Videos posted this week"
+                : "Your team's videos this week"
+            }
             subtitle={
               missingReports > 0
                 ? `${missingReports} trainer${missingReports === 1 ? "" : "s"} yet to report`
